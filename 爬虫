@@ -1,0 +1,39 @@
+import requests
+from lxml import etree
+import os
+
+# 设计模式 -- 面向对象 继承 封装
+class Spider(object):
+    def start_request(self):
+        # 1. 请求一级页面拿到数据，抽取小说名、小说链接 创建文件夹
+        response = requests.get("https://www.qidian.com/all")
+        xml = etree.HTML(response.text) # 整理成xml文档对象
+        Bigtit_list = xml.xpath('//div[@class="book-mid-info"]/h4/a/text()')
+        Bigsrc_list = xml.xpath('//div[@class="book-mid-info"]/h4/a/@href')
+        for Bigtit, Bigsrc in zip(Bigtit_list, Bigsrc_list):
+            if os.path.exists(Bigtit) == False:
+                os.mkdir(Bigtit)
+            self.next_file(Bigtit, Bigsrc)
+
+    def next_file(self, Bigtit, Bigsrc):
+        # 2. 请求二级页面拿到数据，抽取章名、章链接
+        response = requests.get("http:" + Bigsrc)
+        xml = etree.HTML(response.text) # 整理成xml文档对象
+        Littit_list = xml.xpath('//ul[@class="cf"]/li/a/text()')
+        Litsrc_list = xml.xpath('//ul[@class="cf"]/li/a/@href')
+        for Littit, Litsrc in zip(Littit_list, Litsrc_list):
+            self.finally_file(Littit, Litsrc, Bigtit)
+
+    def finally_file(self, Littit, Litsrc, Bigtit):
+        # 3. 请求三级页面拿到数据，抽取文章内容，保存数据
+        response = requests.get("http:" + Litsrc)
+        xml = etree.HTML(response.text) # 整理成xml文档对象
+        content = "\n".join(xml.xpath('//div[@class="read-content j_readContent"]/p/text()'))
+        fileName = Bigtit + "\\" + Littit + ".txt"
+        print("正在保存小说文件：" + fileName)
+        with open(fileName, "w", encoding="utf-8") as f:
+            f.write(content)
+
+
+spider = Spider()
+spider.start_request()
